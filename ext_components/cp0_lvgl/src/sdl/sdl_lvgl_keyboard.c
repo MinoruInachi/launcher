@@ -14,6 +14,8 @@
 #include "../cp0_keyboard_input_lifecycle.h"
 #include "../cp0_keyboard_queue.h"
 #include "../cp0_keyboard_text.h"
+#include "../cp0_keyboard_deliver.h"
+#include "cp0_ime.h"
 
 
 #include "lvgl/src/drivers/sdl/lv_sdl_mouse.h"
@@ -518,6 +520,8 @@ static void cp0_sdl_keyboard_read(lv_indev_t *indev, lv_indev_data_t *data)
         int swallowed = ui_screensaver_filter_key(elm);
         if (!swallowed && key_filter)
             swallowed = key_filter(elm);
+        if (!swallowed)
+            swallowed = cp0_ime_filter_key(elm);
         if (!swallowed) {
             lv_obj_t *root = lv_screen_active();
             if (root != NULL)
@@ -542,8 +546,21 @@ static void cp0_sdl_keyboard_read(lv_indev_t *indev, lv_indev_data_t *data)
     }
 }
 
+void cp0_keyboard_deliver_key(const struct key_item *item)
+{
+    if (item == NULL) return;
+    lv_obj_t *root = lv_screen_active();
+    if (root != NULL)
+        lv_obj_send_event(root, (lv_event_code_t)LV_EVENT_KEYBOARD, (void *)item);
+    if (global_key_handler)
+        global_key_handler(item);
+    else
+        ui_global_hint_on_key(item);
+}
+
 static void cp0_sdl_keyboard_delete_cb(lv_event_t *event)
 {
+    cp0_ime_deinit();
     lv_indev_t *indev = (lv_indev_t *)lv_event_get_user_data(event);
     cp0_sdl_keyboard_t *kbd = lv_indev_get_driver_data(indev);
     if (kbd != NULL) {
@@ -652,6 +669,8 @@ void init_sdl_input(void)
         fprintf(stderr, "cp0_lvgl: failed to create SDL keyboard input\n");
 
     pthread_mutex_unlock(&keyboard_init_mutex);
+    if (indev != NULL)
+        cp0_ime_init();
 }
 
 void init_input(void)

@@ -17,6 +17,7 @@
 
 #include "cp0_font_service.hpp"
 #include "cp0_enum_cast.h"
+#include "cp0_ime.h"
 
 namespace {
 
@@ -1004,6 +1005,8 @@ void LvSettingWifiScanPage3::enter_text_input_mode(){
             previous_input_context_    = cp0_keyboard_get_input_context();
             previous_keypad_intercept_ = cp0_keyboard_get_lvgl_keypad_intercept();
             keyboard_mode_saved_       = true;
+            // SSID/password entry is raw text: keep the IME (fcitx5) out of it.
+            cp0_ime_push_suppress();
         }
         cp0_keyboard_set_input_context(KBD_INPUT_CONTEXT_TEXT);
         cp0_keyboard_set_lvgl_keypad_intercept(1);
@@ -1014,6 +1017,7 @@ void LvSettingWifiScanPage3::restore_text_input_mode(){
         cp0_keyboard_set_input_context(previous_input_context_);
         cp0_keyboard_set_lvgl_keypad_intercept(previous_keypad_intercept_);
         keyboard_mode_saved_ = false;
+        cp0_ime_pop_suppress();
     }
 
 void LvSettingWifiScanPage3::clear_password(){

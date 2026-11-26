@@ -16,6 +16,14 @@ config CP0_LVGL_USE_ZMQ_RPC
     bool "Enable cp0 lvgl local ZMQ automation RPC"
     default n
 
+config CP0_LVGL_IME_FCITX5
+    bool "Enable fcitx5 input method (IME) bridge"
+    default n
+    help
+      Offer text-mode key events to a running fcitx5 daemon over the D-Bus
+      session bus and draw its pre-edit/candidate panel with LVGL. Requires
+      GIO. When fcitx5 is not running, keys pass through unchanged.
+
 menu "Optional runtime services"
 
 config CP0_LVGL_INIT_FILESYSTEM

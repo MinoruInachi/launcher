@@ -57,6 +57,7 @@ private:
     bool secret_ = false;
     bool secret_revealed_ = false;
     bool input_context_saved_ = false;
+    bool ime_suppressed_ = false;
     cp0_keyboard_input_context_t previous_input_context_ =
         KBD_INPUT_CONTEXT_NAVIGATION;
     int previous_lvgl_keypad_intercept_ = 0;

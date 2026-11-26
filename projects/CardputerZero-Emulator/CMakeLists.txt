@@ -154,6 +154,7 @@ set(CP0_LVGL_APP_COMMON_SRCS
     ${CP0_LVGL}/src/commount.c
     ${CP0_LVGL}/src/commount.cpp
     ${CP0_LVGL}/src/cp0_esc_state.c
+    ${CP0_LVGL}/src/cp0_ime_stub.c
     ${CP0_LVGL}/src/cp0_font_service.cpp
     ${CP0_LVGL}/src/cp0_montserrat_medium_latin_10.c
     ${CP0_LVGL}/src/cp0_montserrat_medium_latin_12.c

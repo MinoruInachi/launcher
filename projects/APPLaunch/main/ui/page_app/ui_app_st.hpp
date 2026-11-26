@@ -14,6 +14,7 @@
 #include "../model/terminal_unicode.hpp"
 #include "cp0_lvgl_app.h"
 #include "input_keys.h"
+#include "keyboard_input.h"
 #include <algorithm>
 #include <array>
 #include <ctype.h>
@@ -183,6 +184,10 @@ private:
     TerminalHelpFactory help_factory_ = nullptr;
     bool terminal_active_ = false;
     bool waiting_key_to_exit_ = false;
+    // While a shell is running the page is a text field: the keyboard runs
+    // in KBD_INPUT_CONTEXT_TEXT so the input method (fcitx5) can attach.
+    bool text_context_saved_ = false;
+    cp0_keyboard_input_context_t previous_input_context_ = KBD_INPUT_CONTEXT_NAVIGATION;
     bool cursor_blink_visible_ = false;
     bool cursor_visible_mode_ = true;
     bool shift_down_ = false;
@@ -248,6 +253,8 @@ private:
     void hide_help();
     void scroll_help(int direction);
     bool help_visible() const;
+    void sync_text_input_context();
+    void restore_text_input_context();
     bool renderer_ready() const;
     void bind_events();
     void detach_renderer_callbacks();

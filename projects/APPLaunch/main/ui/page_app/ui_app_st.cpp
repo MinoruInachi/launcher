@@ -29,6 +29,7 @@ UISTPage::UISTPage(TerminalHelpFactory help_factory)
 }
 UISTPage::~UISTPage()
 {
+    restore_text_input_context();
     terminal_active_ = false;
     if (root_screen_)
         lv_obj_remove_event_cb_with_user_data(
@@ -73,6 +74,7 @@ void UISTPage::exec(const std::string &command, const std::list<std::string> &ar
         render_all();
         terminal_active_ = false;
         waiting_key_to_exit_ = true;
+        sync_text_input_context();
         return;
     }
 

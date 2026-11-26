@@ -7,6 +7,7 @@
 #define APP_PAGE_IMPLEMENTATION_UNIT
 #include "ui_app_ssh.hpp"
 
+#include "cp0_ime.h"
 #include "input_keys.h"
 #include "../keyboard_text_input.hpp"
 #include "../model/ssh_shortcut_action.hpp"
@@ -102,18 +103,22 @@ void UISSHPage::do_connect()
         }
     };
 
+    // Hand the keyboard back before the terminal saves its own input context:
+    // the saves must nest, or the terminal restores this form's text context
+    // on teardown and the home screen ignores every key.
+    restore_text_input_mode();
     try {
         terminal_page_->exec("ssh", arguments);
     } catch (...) {
         terminal_page_->navigate_home = nullptr;
         terminal_page_.reset();
+        enter_text_input_mode();
         restore_operation_.abort(restore_token_);
         set_status("Unable to start SSH", true);
         return;
     }
 
     view_state_ = ViewState::TERMINAL;
-    restore_text_input_mode();
     terminal_return_pending_ = false;
     lv_disp_load_scr(terminal_page_->screen());
     if (lv_indev_t *input = lv_indev_get_next(nullptr)) {
@@ -186,6 +191,9 @@ void UISSHPage::enter_text_input_mode()
         previous_input_context_ = cp0_keyboard_get_input_context();
         previous_keypad_intercept_ = cp0_keyboard_get_lvgl_keypad_intercept();
         input_context_saved_ = true;
+        // Host/Port/User are ASCII: keep the IME (fcitx5) out of the form.
+        // The SSH terminal itself still gets the IME.
+        cp0_ime_push_suppress();
     }
     cp0_keyboard_set_input_context(KBD_INPUT_CONTEXT_TEXT);
     cp0_keyboard_set_lvgl_keypad_intercept(1);
@@ -197,6 +205,7 @@ void UISSHPage::restore_text_input_mode()
     cp0_keyboard_set_input_context(previous_input_context_);
     cp0_keyboard_set_lvgl_keypad_intercept(previous_keypad_intercept_);
     input_context_saved_ = false;
+    cp0_ime_pop_suppress();
 }
 
 void UISSHPage::event_handler_init()

@@ -471,3 +471,22 @@ TSAN_OPTIONS="halt_on_error=1" "$binary"
 "${CXX:-c++}" -std=c++17 -Wall -Wextra -Werror \
     -I"$root/include" "$root/tests/test_keyboard_input_context.cpp" -o "$binary"
 "$binary"
+
+"${CC:-cc}" -std=c11 -Wall -Wextra -Werror \
+    -I"$root/include" -I"$root/src" \
+    "$root/src/cp0_ime_util.c" "$root/src/cp0_keyboard_text.c" \
+    "$root/tests/test_ime_util.c" -o "$binary"
+"$binary"
+
+# fcitx5 IME bridge protocol test against a mock fcitx5 on a private bus.
+if command -v dbus-run-session >/dev/null 2>&1 && pkg-config --exists gio-2.0; then
+    mock="${binary}_mock_fcitx5"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror \
+        "$root/tests/ime/mock_fcitx5_server.c" \
+        $(pkg-config --cflags --libs gio-2.0) -o "$mock"
+    "${CXX:-c++}" -std=c++17 -Wall -Wextra -Werror \
+        -I"$root/include" -I"$root/src" \
+        "$root/tests/ime/test_fcitx5_client.cpp" "$root/src/ime/cp0_fcitx5_client.cpp" \
+        $(pkg-config --cflags --libs gio-2.0) -o "$binary"
+    timeout 60s dbus-run-session -- "$binary" "$mock"
+fi

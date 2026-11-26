@@ -7,6 +7,9 @@
 #include "cp0_keyboard_lvgl_input.h"
 #include "../cp0_keyboard_queue.h"
 #include "../cp0_keyboard_input_lifecycle.h"
+#include "../cp0_keyboard_deliver.h"
+
+#include "cp0_ime.h"
 
 #include "input_keys.h"
 #include "keyboard_input.h"
@@ -26,6 +29,7 @@ static volatile int lvgl_keypad_intercept;
 
 static void keypad_delete_cb(lv_event_t *event)
 {
+    cp0_ime_deinit();
     cp0_keyboard_input_handle_deleted(
         &keypad_lifecycle, lv_event_get_user_data(event));
 }
@@ -117,6 +121,10 @@ static void keypad_read(lv_indev_t *indev, lv_indev_data_t *data)
         int swallowed = ui_screensaver_filter_key(item);
         if (!swallowed && key_filter)
             swallowed = key_filter(item);
+        /* Modal filters (low battery, ...) win over the IME; the IME sees
+         * keys before pages and global shortcuts. */
+        if (!swallowed)
+            swallowed = cp0_ime_filter_key(item);
         if (!swallowed) {
             lv_obj_t *root = lv_screen_active();
             if (root)
@@ -138,6 +146,18 @@ static void keypad_read(lv_indev_t *indev, lv_indev_data_t *data)
         data->continue_reading = cp0_keyboard_queue_has_data();
         free(item);
     }
+}
+
+void cp0_keyboard_deliver_key(const struct key_item *item)
+{
+    if (!item) return;
+    lv_obj_t *root = lv_screen_active();
+    if (root)
+        lv_obj_send_event(root, (lv_event_code_t)LV_EVENT_KEYBOARD, (void *)item);
+    if (global_key_handler)
+        global_key_handler(item);
+    else
+        ui_global_hint_on_key(item);
 }
 
 void cp0_keyboard_dispatch_pending(void)
@@ -163,4 +183,6 @@ void cp0_keyboard_create_lvgl_input_devices(void)
         lv_indev_add_event_cb(indev, keypad_delete_cb, LV_EVENT_DELETE, indev);
     }
     cp0_keyboard_input_finish_create(&keypad_lifecycle, indev);
+    if (indev)
+        cp0_ime_init();
 }

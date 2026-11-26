@@ -9,6 +9,7 @@
 #include "zclaw_fonts.hpp"
 #include "zclaw_theme.h"
 #include "keyboard_input.h"
+#include "cp0_ime.h"
 
 namespace zclaw {
 namespace {
@@ -153,6 +154,12 @@ void InputDialog::open(const FontManager *fonts)
     input_context_saved_ = true;
     cp0_keyboard_set_input_context(KBD_INPUT_CONTEXT_TEXT);
     cp0_keyboard_set_lvgl_keypad_intercept(1);
+    // Only chat text goes through the input method; keys, URIs and pairing
+    // codes are typed raw.
+    if (mode_ != InputMode::Chat && !ime_suppressed_) {
+        cp0_ime_push_suppress();
+        ime_suppressed_ = true;
+    }
 
     const bool single_line = input_is_single_line(mode_);
     const lv_font_t *font = mode_ == InputMode::Chat
@@ -245,6 +252,10 @@ void InputDialog::release_dialog()
         cp0_keyboard_set_input_context(previous_input_context_);
         cp0_keyboard_set_lvgl_keypad_intercept(previous_lvgl_keypad_intercept_);
         input_context_saved_ = false;
+    }
+    if (ime_suppressed_) {
+        cp0_ime_pop_suppress();
+        ime_suppressed_ = false;
     }
     dialog_ = nullptr;
     textarea_ = nullptr;

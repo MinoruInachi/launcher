@@ -7,6 +7,7 @@
 #include "settings_bluetooth_page.hpp"
 #include "keyboard_text_input.hpp"
 #include "cp0_enum_cast.h"
+#include "cp0_ime.h"
 
 #include <algorithm>
 #include <charconv>
@@ -1563,6 +1564,8 @@ LvSettingBluetoothPage3::~LvSettingBluetoothPage3()
             previous_input_context_ = cp0_keyboard_get_input_context();
             previous_keypad_intercept_ = cp0_keyboard_get_lvgl_keypad_intercept();
             keyboard_mode_saved_ = true;
+            // PIN/passkey entry is raw ASCII: keep the IME (fcitx5) out of it.
+            cp0_ime_push_suppress();
         }
         cp0_keyboard_set_input_context(KBD_INPUT_CONTEXT_TEXT);
         cp0_keyboard_set_lvgl_keypad_intercept(1);
@@ -1574,6 +1577,7 @@ LvSettingBluetoothPage3::~LvSettingBluetoothPage3()
         cp0_keyboard_set_input_context(previous_input_context_);
         cp0_keyboard_set_lvgl_keypad_intercept(previous_keypad_intercept_);
         keyboard_mode_saved_ = false;
+        cp0_ime_pop_suppress();
     }
 
     void LvSettingBluetoothPage3::render_agent_prompt()

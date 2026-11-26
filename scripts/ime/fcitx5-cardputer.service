@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 M5Stack Technology CO LTD
+# SPDX-License-Identifier: MIT
+#
+# fcitx5 for CardputerZero (systemd user unit of the UID 1000 account that
+# runs APPLaunch; its name is chosen at first-boot setup).
+# There is no X11/Wayland session on the device, so every display-related
+# addon is disabled; APPLaunch talks to fcitx5 over the D-Bus session bus and
+# draws the candidate panel itself.
+
+[Unit]
+Description=Fcitx5 input method for APPLaunch (no display server)
+Before=APPLaunch.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/fcitx5 --disable=xcb,wayland,waylandim,xim,classicui,kimpanel,ibusfrontend,fcitx4frontend,notificationitem,notifications,clipboard,virtualkeyboard
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

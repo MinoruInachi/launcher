@@ -16,6 +16,9 @@ extern "C" void cp0_keyboard_set_lvgl_keypad_intercept(int value) { intercept = 
 extern "C" int cp0_keyboard_get_lvgl_keypad_intercept() { return intercept; }
 extern "C" void cp0_keyboard_set_input_context(cp0_keyboard_input_context_t value) { input_context = value; }
 extern "C" cp0_keyboard_input_context_t cp0_keyboard_get_input_context() { return input_context; }
+static int ime_suppress = 0;
+extern "C" void cp0_ime_push_suppress() { ++ime_suppress; }
+extern "C" void cp0_ime_pop_suppress() { --ime_suppress; }
 bool settings_bluetooth_named_only_enabled() { return false; }
 
 static void snapshot(const char *name)
@@ -127,7 +130,17 @@ int main()
         reset_done(0, {});
         drain();
         assert(page.discovery_active_ && page.powered_);
+
+        // PIN/passkey entry is raw text: the IME stays suppressed exactly
+        // while the agent prompt owns the keyboard, and re-entry nests once.
+        page.enter_text_input_mode();
+        page.enter_text_input_mode();
+        assert(ime_suppress == 1 && input_context == KBD_INPUT_CONTEXT_TEXT);
+        page.restore_text_input_mode();
+        assert(ime_suppress == 0 && input_context == KBD_INPUT_CONTEXT_NAVIGATION);
+        page.enter_text_input_mode();
     }
+    assert(ime_suppress == 0);
     lv_display_delete(display);
     lv_deinit();
 }

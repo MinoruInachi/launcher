@@ -140,6 +140,7 @@ void UISTPage::show_help()
     lv_obj_clear_flag(help_overlay_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(help_overlay_);
     show_cursor(false);
+    sync_text_input_context();
 }
 
 void UISTPage::hide_help()
@@ -147,6 +148,29 @@ void UISTPage::hide_help()
     if (!help_overlay_) return;
     lv_obj_add_flag(help_overlay_, LV_OBJ_FLAG_HIDDEN);
     if (terminal_active_) update_cursor();
+    sync_text_input_context();
+}
+
+void UISTPage::sync_text_input_context()
+{
+    // Text mode only while keys go to the shell; help, "press any key to
+    // exit" and teardown use the normal navigation context.
+    const bool want_text = terminal_active_ && !pty_handle_.empty() &&
+                           !waiting_key_to_exit_ && !help_visible();
+    if (want_text && !text_context_saved_) {
+        previous_input_context_ = cp0_keyboard_get_input_context();
+        text_context_saved_ = true;
+        cp0_keyboard_set_input_context(KBD_INPUT_CONTEXT_TEXT);
+    } else if (!want_text) {
+        restore_text_input_context();
+    }
+}
+
+void UISTPage::restore_text_input_context()
+{
+    if (!text_context_saved_) return;
+    cp0_keyboard_set_input_context(previous_input_context_);
+    text_context_saved_ = false;
 }
 
 void UISTPage::scroll_help(int direction)
@@ -270,6 +294,7 @@ void UISTPage::recover_callback_failure() noexcept
     terminal_active_ = state.terminal_active;
     waiting_key_to_exit_ = state.waiting_key_to_exit;
     home_hold_status_ = state.home_hold_status;
+    sync_text_input_context();
 }
 
 void UISTPage::event_cb(lv_event_t *event)

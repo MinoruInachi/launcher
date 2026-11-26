@@ -58,6 +58,7 @@ void UISTPage::start_command(const std::string &command,
         process_bytes(error_message, static_cast<int>(std::strlen(error_message)));
         render_all();
         waiting_key_to_exit_ = true;
+        sync_text_input_context();
         return;
     }
     if (title && title[0]) set_page_title(title);
@@ -69,9 +70,11 @@ void UISTPage::start_command(const std::string &command,
         process_bytes(TIMER_ERROR, sizeof(TIMER_ERROR) - 1);
         render_all();
         waiting_key_to_exit_ = true;
+        sync_text_input_context();
         return;
     }
     render_all();
+    sync_text_input_context();
 }
 
 void UISTPage::start_shell()
@@ -177,6 +180,7 @@ void UISTPage::poll_cb()
     process_bytes(EXIT_HINT, sizeof(EXIT_HINT) - 1);
     render_all();
     waiting_key_to_exit_ = true;
+    sync_text_input_context();
 }
 
 void UISTPage::static_cursor_cb(lv_timer_t *timer) noexcept
