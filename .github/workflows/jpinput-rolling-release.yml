@@ -1,0 +1,200 @@
+name: Rolling release (feature/jpinput)
+
+# Builds M5CardputerZero-APPLaunch and ZClaw (aarch64, fcitx5 Japanese input)
+# on every push to feature/jpinput and replaces the assets of the `rolling`
+# prerelease. Independent of launcher-build.yml / launcher-release.yml: it never
+# touches launcher-v* tags or the launcher-latest update channel.
+
+on:
+  push:
+    branches: [feature/jpinput]
+    paths:
+      - 'projects/APPLaunch/**'
+      - 'projects/ZClaw/**'
+      - 'ext_components/**'
+      - 'SDK'
+      - '.gitmodules'
+      - 'scripts/ime/**'
+      - '.github/workflows/jpinput-rolling-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push supersedes a build that has not published yet.
+concurrency:
+  group: jpinput-rolling-release
+  cancel-in-progress: true
+
+env:
+  ROLLING_TAG: rolling
+  ROLLING_BRANCH: feature/jpinput
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Resolve version
+      id: version
+      run: |
+        set -euo pipefail
+        base="$(sed -nE 's/^DEFAULT_VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"$/\1/p' scripts/debian_packager.py | head -n1)"
+        version="${base:-0.0.0}-jpinput.${GITHUB_RUN_NUMBER}"
+        echo "version=${version}" >> "${GITHUB_OUTPUT}"
+        echo "Building ${version} from ${GITHUB_SHA}"
+
+    - name: Initialize SDK submodule
+      run: git submodule update --init --depth=1 SDK
+
+    - name: Install cross-compilation toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+          libfreetype-dev libpng-dev
+
+    - name: Install Python build dependencies
+      run: pip install scons parse requests tqdm
+
+    - name: Extract SDK BSP version
+      id: sdk-version
+      run: echo "ver=$(tr -d '[:space:]' < ext_components/cp0_lvgl/sdk_version.txt)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache SDK BSP static_lib
+      uses: actions/cache@v4
+      with:
+        path: SDK/github_source/static_lib_${{ steps.sdk-version.outputs.ver }}
+        key: sdk-bsp-${{ steps.sdk-version.outputs.ver }}
+
+    - name: Pre-download C-Thread-Pool
+      run: |
+        DEST=SDK/github_source/C-Thread-Pool
+        if [ ! -d "$DEST" ]; then
+          for i in 1 2 3; do
+            curl -fsSL -o /tmp/ctp.zip "https://github.com/Pithikos/C-Thread-Pool/archive/refs/heads/master.zip" && break
+            echo "retry $i..."; sleep 5
+          done
+          unzip -q /tmp/ctp.zip -d /tmp/ctp
+          mv /tmp/ctp/C-Thread-Pool-master "$DEST"
+        fi
+
+    # The pinned SDK annotates a helper with `Path` without importing it, which
+    # raises NameError on Pythons that evaluate annotations eagerly. Provide the
+    # name before SCons reads any SConscript instead of patching the submodule.
+    - name: Create scons wrapper
+      run: |
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP/bin"
+        # Run with the interpreter pip installed SCons for.
+        python="$(sed -n '1s/^#![[:space:]]*//p' "$(command -v scons)")"
+        "${python}" -c 'import SCons.Script.Main'
+        printf '#!%s\n' "${python}" > "$RUNNER_TEMP/bin/scons-path"
+        cat >> "$RUNNER_TEMP/bin/scons-path" <<'EOF'
+        import builtins, pathlib, sys
+        builtins.Path = pathlib.Path
+        from SCons.Script.Main import main
+        sys.argv[0] = "scons"
+        sys.exit(main())
+        EOF
+        chmod +x "$RUNNER_TEMP/bin/scons-path"
+
+    - name: Build APPLaunch (cross-compile aarch64)
+      run: |
+        cd projects/APPLaunch
+        rm -rf build dist
+        export CardputerZero=y CONFIG_REPO_AUTOMATION=y
+        export APPLAUNCH_VERSION="${{ steps.version.outputs.version }}"
+        export APPLAUNCH_CHANNEL=rolling
+        export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+        "$RUNNER_TEMP/bin/scons-path" -j"$(nproc)"
+        file dist/M5CardputerZero-APPLaunch | grep -q 'ARM aarch64'
+
+    - name: Build ZClaw (cross-compile aarch64)
+      run: |
+        cd projects/ZClaw
+        rm -rf build dist
+        export CardputerZero=y CONFIG_REPO_AUTOMATION=y
+        "$RUNNER_TEMP/bin/scons-path" -j"$(nproc)"
+        file dist/ZClaw | grep -q 'ARM aarch64'
+
+    - name: Collect assets
+      run: |
+        set -euo pipefail
+        mkdir -p assets
+        cp projects/APPLaunch/dist/M5CardputerZero-APPLaunch assets/
+        cp projects/ZClaw/dist/ZClaw assets/
+        # Resource tree installed as /usr/share/APPLaunch (icons such as
+        # share/images/memo_100.png, fonts, .desktop files, ...).
+        tar -C projects/APPLaunch/dist -czf assets/APPLaunch-resources.tar.gz APPLaunch
+        tar -czf assets/ime-fcitx5-setup.tar.gz -C scripts ime
+        (cd assets && sha256sum * > SHA256SUMS)
+        ls -l assets
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: jpinput-rolling
+        path: assets/
+        if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: jpinput-rolling
+        path: assets/
+
+    - name: Skip if the branch moved on
+      id: head
+      run: |
+        set -euo pipefail
+        head="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${ROLLING_BRANCH}" --jq .object.sha)"
+        if [ "${head}" != "${GITHUB_SHA}" ]; then
+          echo "${ROLLING_BRANCH} is now ${head}; a newer run will publish it."
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Replace the rolling release
+      if: steps.head.outputs.skip != 'true'
+      run: |
+        set -euo pipefail
+        short="${GITHUB_SHA:0:12}"
+        cat > notes.md <<EOF
+        Rolling build of \`${ROLLING_BRANCH}\` (fcitx5 Japanese input + Memo).
+
+        - Version: \`${VERSION}\`
+        - Commit: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}
+        - Built: $(date -u '+%Y-%m-%d %H:%M UTC')
+
+        | File | Install to |
+        |---|---|
+        | \`M5CardputerZero-APPLaunch\` | \`/usr/share/APPLaunch/bin/\` |
+        | \`ZClaw\` | \`/usr/share/APPLaunch/bin/\` |
+        | \`APPLaunch-resources.tar.gz\` | extract the \`APPLaunch/\` tree over \`/usr/share/APPLaunch/\` |
+        | \`ime-fcitx5-setup.tar.gz\` | fcitx5 setup (\`sh ime/install_fcitx5_ime.sh mozc\`) |
+
+        See \`docs/ime-fcitx5.ja.md\` for the full procedure. This release is
+        replaced on every push; it is not an official CardputerZero release.
+        EOF
+        # Recreate instead of editing so the tag always points at this commit.
+        gh release delete "${ROLLING_TAG}" --repo "${GITHUB_REPOSITORY}" --cleanup-tag --yes 2>/dev/null || true
+        gh release create "${ROLLING_TAG}" --repo "${GITHUB_REPOSITORY}" \
+          --target "${GITHUB_SHA}" --prerelease \
+          --title "Rolling: ${ROLLING_BRANCH} (${short})" \
+          --notes-file notes.md \
+          assets/*
