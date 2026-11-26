@@ -122,6 +122,13 @@ ${CXX:-g++} -std=c++17 -Wall -Wextra -Werror \
     -o "$build_dir/test_keyboard_text_input"
 "$build_dir/test_keyboard_text_input"
 ${CXX:-g++} -std=c++17 -Wall -Wextra -Werror \
+    -I"$test_root/../../../ext_components/cp0_lvgl/include" \
+    "$test_root/test_memo_model.cpp" \
+    "$test_root/../main/ui/model/memo_model.cpp" \
+    "$test_root/../main/ui/keyboard_text_input.cpp" \
+    -o "$build_dir/test_memo_model"
+"$build_dir/test_memo_model"
+${CXX:-g++} -std=c++17 -Wall -Wextra -Werror \
     "$test_root/test_tank_battle_model.cpp" \
     "$test_root/../main/ui/model/tank_battle_model.cpp" \
     -o "$build_dir/test_tank_battle_model"
@@ -325,6 +332,40 @@ ${CXX:-g++} -std=c++17 -fno-access-control -pthread \
     "$test_root/bluetooth_ui/test_bluetooth_ui.cpp" \
     "$@" -lm $sdl_libs -o "$bluetooth_build_dir/test_bluetooth_ui"
 "$bluetooth_build_dir/test_bluetooth_ui"
+
+# Memo page on the real AppPage shell: editing, IME-style commits, files.
+memo_ui_dir="$build_dir/memo_ui"
+mkdir -p "$memo_ui_dir"
+for asset in cp0_lvgl_app_page_assets cp0_status_ethernet; do
+    ${CC:-gcc} -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE \
+        -I"$repo_root/ext_components/cp0_lvgl/include" \
+        -I"$test_root/low_battery_ui" -I"$lvgl_root/.." -I"$lvgl_root" \
+        $sdl_cflags -c "$repo_root/ext_components/cp0_lvgl/src/$asset.c" \
+        -o "$memo_ui_dir/$asset.o"
+done
+${CXX:-g++} -std=c++17 -fno-access-control -pthread \
+    -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE \
+    -I"$test_root/low_battery_ui" -I"$lvgl_root/.." -I"$lvgl_root" \
+    -I"$repo_root/ext_components/cp0_lvgl/include" \
+    -I"$repo_root/ext_components/cp0_lvgl/src" \
+    -I"$test_root/../main/include" -I"$test_root/../main/ui" \
+    -I"$repo_root/SDK/github_source/eventpp/include" \
+    -I"$repo_root/SDK/components/utilities/include" \
+    $sdl_cflags \
+    "$repo_root/ext_components/cp0_lvgl/src/ui_app_page.cpp" \
+    "$repo_root/ext_components/cp0_lvgl/src/cp0_status_lifecycle.cpp" \
+    "$repo_root/ext_components/cp0_lvgl/src/cp0_font_service.cpp" \
+    "$repo_root/ext_components/cp0_lvgl/src/cp0_filesystem_api.cpp" \
+    "$repo_root/ext_components/cp0_lvgl/src/cp0_posix_filesystem.cpp" \
+    "$repo_root/ext_components/cp0_lvgl/src/cp0_resource_path_policy.cpp" \
+    "$test_root/../main/ui/keyboard_text_input.cpp" \
+    "$test_root/../main/ui/model/memo_model.cpp" \
+    "$test_root/../main/ui/page_app/ui_app_memo.cpp" \
+    "$test_root/../main/ui/page_app/ui_app_memo_view.cpp" \
+    "$test_root/memo_ui/test_memo_ui.cpp" \
+    "$memo_ui_dir/cp0_lvgl_app_page_assets.o" "$memo_ui_dir/cp0_status_ethernet.o" \
+    "$@" -lm $sdl_libs -o "$memo_ui_dir/test_memo_ui"
+"$memo_ui_dir/test_memo_ui" "$test_root/../APPLaunch/share/font"
 
 # Carousel titles must not rewrite label->text in place (LVGL dots mode).
 title_clip_dir="$build_dir/title_clip_ui"

@@ -111,6 +111,32 @@ int main()
     invoke({"ReadFile", file_path, "184467440737095516160"}, code, data);
     assert(code == -1);
 
+    const std::string written = std::string(directory) + "/written.txt";
+    const std::string utf8_text = "\xE3\x83\xA1\xE3\x83\xA2\nline2\n";
+    invoke({"WriteFile", written, utf8_text}, code, data);
+    assert(code == 0);
+    invoke({"ReadFile", written, "1024"}, code, data);
+    assert(code == 0 && data == utf8_text);
+    invoke({"WriteFile", written, "short"}, code, data);
+    assert(code == 0);
+    invoke({"ReadFile", written, "1024"}, code, data);
+    assert(code == 0 && data == "short");
+    assert(access((written + ".tmp").c_str(), F_OK) != 0);
+    invoke({"WriteFile", written, ""}, code, data);
+    assert(code == 0);
+    invoke({"ReadFile", written}, code, data);
+    assert(code == 0 && data.empty());
+    invoke({"WriteFile", written}, code, data);
+    assert(code == -1);
+    invoke({"WriteFile", "", "x"}, code, data);
+    assert(code == -1);
+    invoke({"WriteFile", written, std::string(1024 * 1024 + 1, 'x')}, code, data);
+    assert(code == -EFBIG);
+    const std::string unwritable = std::string(directory) + "/missing-dir/file.txt";
+    invoke({"WriteFile", unwritable, "x"}, code, data);
+    assert(code < 0 && access(unwritable.c_str(), F_OK) != 0);
+    assert(unlink(written.c_str()) == 0);
+
     const std::string ensured = std::string(directory) + "/ensured";
     invoke({"EnsureDirForUser", ensured}, code, data);
     assert(code == 0);

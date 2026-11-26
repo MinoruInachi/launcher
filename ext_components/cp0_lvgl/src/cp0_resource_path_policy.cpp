@@ -41,7 +41,8 @@ ResourceKind classify_resource(const std::string &path)
         return ResourceKind::image;
     if (extension == "wav" || extension == "mp3" || extension == "ogg")
         return ResourceKind::audio;
-    if (extension == "ttf" || extension == "otf") return ResourceKind::font;
+    // ttc: font collections such as the bundled NotoSansCJK-Regular.ttc.
+    if (extension == "ttf" || extension == "otf" || extension == "ttc") return ResourceKind::font;
     return ResourceKind::none;
 }
 

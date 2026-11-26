@@ -84,6 +84,8 @@ constexpr BuiltinAppRegistration BUILTIN_APPS[] = {
     {{"IP Panel", "ip_panel_100.png", "app_IP_Panel", true, false},
      nullptr, false, true, false, append_page_app<UIIpPanelPage>},
 #endif
+    {{"Memo", "memo_100.png", "app_Memo", true, false},
+     nullptr, false, true, false, append_page_app<UIMemoPage>},
     {{"Calculator", "math_100.png", "app_Math", true, false},
      "@calculator_exec", false, true, false, nullptr},
     {{"Snake", "game_100.png", "app_Game", true, false},

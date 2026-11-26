@@ -229,7 +229,7 @@ int cp0_time_ntp_set(int enable);
 
 ### 文件系统：`cp0_signal_filesystem_api(args, cb)`
 
-命令：`Path logical_name`（解析路径）、`DirList path`、`DirListDetail path`、`Exists path`、`ReadFile path [max_bytes]`、`EnsureDirForUser path`、`Touch path`、`Remove path`、`WatchStart path`、`WatchPoll handle`、`WatchStop handle`。成功的 `Exists` data 为 `1/0`；`WatchStart` data 为句柄；`WatchPoll` data 为轮询结果；目录列表为编码后的逐行记录。路径不能为空且不能包含 NUL；未知命令 code=-2。
+命令：`Path logical_name`（解析路径）、`DirList path`、`DirListDetail path`、`Exists path`、`ReadFile path [max_bytes]`、`WriteFile path data`、`EnsureDirForUser path`、`Touch path`、`Remove path`、`WatchStart path`、`WatchPoll handle`、`WatchStop handle`。成功的 `Exists` data 为 `1/0`；`WatchStart` data 为句柄；`WatchPoll` data 为轮询结果；目录列表为编码后的逐行记录。路径不能为空且不能包含 NUL；未知命令 code=-2。`WriteFile` 先写入 `path.tmp` 再 rename 到 `path`，失败时不会破坏原文件；不会创建父目录；data 最大 1 MiB（超出返回 `-EFBIG`），失败返回 `-errno`。
 
 ### Wi-Fi：`cp0_signal_wifi_api(args, cb)`
 

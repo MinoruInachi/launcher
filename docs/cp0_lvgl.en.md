@@ -118,7 +118,7 @@ All `args` below are `std::list<std::string>` with the command at element zero. 
 
 ### Filesystem signal: `cp0_signal_filesystem_api(args, cb)`
 
-Commands are `Path logical_name`, `DirList path`, `DirListDetail path`, `Exists path`, `ReadFile path [max_bytes]`, `EnsureDirForUser path`, `Touch path`, `Remove path`, `WatchStart path`, `WatchPoll handle`, and `WatchStop handle`. `Exists` returns `1/0`; `WatchStart` returns a handle; directory data is line-encoded. Empty or NUL-containing paths are invalid. Unknown commands return code -2.
+Commands are `Path logical_name`, `DirList path`, `DirListDetail path`, `Exists path`, `ReadFile path [max_bytes]`, `WriteFile path data`, `EnsureDirForUser path`, `Touch path`, `Remove path`, `WatchStart path`, `WatchPoll handle`, and `WatchStop handle`. `Exists` returns `1/0`; `WatchStart` returns a handle; directory data is line-encoded. Empty or NUL-containing paths are invalid. Unknown commands return code -2. `WriteFile` writes `path.tmp` and renames it over `path`, so a failed write leaves the old file intact; it does not create parent directories. `data` is limited to 1 MiB (`-EFBIG` above that) and failures return `-errno`.
 
 ### Wi-Fi
 

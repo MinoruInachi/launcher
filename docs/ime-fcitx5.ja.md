@@ -131,6 +131,18 @@ sudo install -m 755 /tmp/M5CardputerZero-APPLaunch /usr/share/APPLaunch/bin/M5Ca
 systemctl --user restart APPLaunch.service
 ```
 
+手動の場合は、バイナリとは別にリソースファイルもコピーしてください。Memo のアイコン `memo_100.png` は今回新しく追加したファイルなので、実機にはまだありません（`scons push` なら `dist/` ごと転送されるので不要です）。
+
+```bash
+# PC から
+scp projects/APPLaunch/dist/APPLaunch/share/images/memo_100.png <user>@<デバイスのIP>:/tmp/
+# 実機で（<user> として）
+sudo install -m 644 /tmp/memo_100.png /usr/share/APPLaunch/share/images/memo_100.png
+systemctl --user restart APPLaunch.service
+```
+
+ホーム画面の Memo のアイコンが M5Stack のロゴになっている場合は、このファイルが実機にありません。ロゴは、アイコン画像を読み込めなかったときに表示される代替アイコンです。
+
 ZClaw も日本語入力を使う場合は、`projects/ZClaw` で同じようにビルドし、`/usr/share/APPLaunch/bin/ZClaw` を差し替えてください。
 
 > 公式リリースによる APPLaunch の自動更新が走ると、差し替えたバイナリは上書きされます。
@@ -147,7 +159,7 @@ busctl --user call org.fcitx.Fcitx5 /controller org.fcitx.Fcitx.Controller1 Debu
 #   （program には実行ファイル名が入る。ZClaw なら "program:ZClaw"）
 ```
 
-設定 → Bluetooth の名前変更や、CLI（ターミナル）などの文字入力欄で操作します。CLI はシェルの実行中だけ文字入力モードになり、ヘルプ表示中や「Press any key to exit」の待ち状態では IME は働きません。
+ホーム画面の「Memo」（日本語で書けるメモ帳）、設定 → Bluetooth の名前変更、CLI（ターミナル）などの文字入力欄で操作します。Memo のメモは `~/Documents/Memo/memo-YYYYMMDD-HHMMSS.txt`（UTF-8）に保存されます。CLI はシェルの実行中だけ文字入力モードになり、ヘルプ表示中や「Press any key to exit」の待ち状態では IME は働きません。
 
 CLI で確定した日本語が `\346\227\245` のような表示になる場合は、シェルのロケールが UTF-8 になっていません。CLI で `locale` を確認し、`LANG=C` などになっていれば `~/.bashrc` に `export LANG=C.UTF-8` を追加してください。
 
@@ -216,10 +228,8 @@ sh ext_components/cp0_lvgl/tests/ime/run_lvgl_sim.sh <LVGL 9.5 のディレク�
 
 `tests/ime/mock_fcitx5_server.c` は、fcitx5 の `src/frontend/dbusfrontend/dbusfrontend.cpp` と同じシグネチャで最小限のメソッドとシグナルを実装した模擬サーバーです。ローマ字かな変換と3語の辞書を持ち、`CommitString` を応答の前に、パネル更新を idle で後から送る点も fcitx5 と同じにしてあります。
 
-## 既知の制限・未検証事項
+## 既知の制限
 
-- **本物の fcitx5 / mozc では未検証**です。プロトコルはモックで確認しており、fcitx5 のソースのシグネチャには合わせてありますが、実機での確認が必要です。
-- **実機向けビルドと SDL シミュレーターのビルドは未実行**です（試作環境に aarch64 ツールチェーンと SDL2 がなかったため）。変更したキー処理ファイルは、ヘッドレス LVGL でのビルドと、SDL2 ヘッダーを使った構文チェックまで行っています。
 - 未確定文字はインライン表示ではなく、画面下部のパネルに表示されます（入力欄のカーソル位置には出ません）。
 - `.desktop` から起動される外部アプリは別プロセスです。日本語入力を使うには、そのアプリも `CONFIG_CP0_LVGL_IME_FCITX5=y` でビルドする必要があります（ZClaw は有効化済み）。LaunchWizard は対象外です。
 - 文字入力モード（`KBD_INPUT_CONTEXT_TEXT`）を使わない独自の入力欄では、IME は動きません。

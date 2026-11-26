@@ -13,7 +13,7 @@
 
 namespace {
 
-constexpr std::array<std::string_view, 24> kBuiltInAppOrder = {
+constexpr std::array<std::string_view, 25> kBuiltInAppOrder = {
     "settings",
     "store",
     "cli",
@@ -38,6 +38,7 @@ constexpr std::array<std::string_view, 24> kBuiltInAppOrder = {
     "lora",
     "nfc",
     "capcc1101subgchat",
+    "memo",
 };
 
 // These applications are delivered as independent product packages and are

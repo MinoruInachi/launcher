@@ -14,6 +14,10 @@
 #include <new>
 #include <sstream>
 #include <sys/stat.h>
+#ifndef _WIN32
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 namespace cp0_posix_filesystem {
 namespace {
@@ -131,6 +135,47 @@ int read_file_limited(const std::string &path, size_t max_bytes, std::string &ou
         output.clear();
         return -EIO;
     }
+    return 0;
+}
+
+int write_file_atomic(const std::string &path, const std::string &data)
+{
+    if (path.empty() || path.back() == '/') return -EINVAL;
+    const std::string temporary = path + ".tmp";
+    FILE *file = std::fopen(temporary.c_str(), "wb");
+    if (!file) return errno ? -errno : -EIO;
+    bool ok = data.empty() || std::fwrite(data.data(), 1, data.size(), file) == data.size();
+    ok = std::fflush(file) == 0 && ok;
+#ifndef _WIN32
+    ok = fsync(fileno(file)) == 0 && ok;
+#endif
+    int error = ok ? 0 : (errno ? errno : EIO);
+    if (std::fclose(file) != 0 && ok) {
+        ok = false;
+        error = errno ? errno : EIO;
+    }
+    if (ok) {
+#ifdef _WIN32
+        std::remove(path.c_str());
+#endif
+        if (std::rename(temporary.c_str(), path.c_str()) != 0) {
+            ok = false;
+            error = errno ? errno : EIO;
+        }
+    }
+    if (!ok) {
+        std::remove(temporary.c_str());
+        return -error;
+    }
+#ifndef _WIN32
+    const auto slash = path.find_last_of('/');
+    const std::string parent = slash == std::string::npos ? "." : (slash == 0 ? "/" : path.substr(0, slash));
+    const int directory = open(parent.c_str(), O_RDONLY);
+    if (directory >= 0) {
+        fsync(directory);
+        close(directory);
+    }
+#endif
     return 0;
 }
 

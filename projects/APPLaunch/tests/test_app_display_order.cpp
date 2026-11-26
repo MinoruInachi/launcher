@@ -26,6 +26,9 @@ int main()
     assert(launcher_builtin_app_display_order("IP_PANEL") == 6);
     // Existing images may use the hardware-prefixed SubG desktop name.
     assert(launcher_builtin_app_display_order("Cap-CC1101-SubG-Chat") == 23);
+    // The built-in Memo page sorts after the product app set.
+    assert(launcher_builtin_app_display_order("Memo") == 24);
+    assert(launcher_builtin_desktop_app_is_managed("Memo"));
     assert(launcher_builtin_app_display_order("Vim") == -1);
 
     assert(!launcher_builtin_desktop_app_is_managed("Settings"));

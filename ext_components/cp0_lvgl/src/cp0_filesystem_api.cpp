@@ -20,6 +20,8 @@
 namespace cp0_filesystem_api {
 namespace {
 
+constexpr size_t kMaxWriteFileBytes = 1024 * 1024;
+
 bool parse_size(const std::string &value, size_t &size)
 {
     return cp0_integer_codec::parse_decimal(
@@ -133,6 +135,17 @@ void dispatch(const std::list<std::string> &arguments, const Operations &operati
             std::string data;
             const int code = cp0_posix_filesystem::read_file_limited(value, max_bytes, data);
             report(code, std::move(data));
+        } else if (command == "WriteFile") {
+            if (arguments.size() != 3 || !valid_path(value)) {
+                report(-1, "invalid WriteFile arguments");
+                return;
+            }
+            const std::string &data = *std::next(arguments.begin(), 2);
+            if (data.size() > kMaxWriteFileBytes) {
+                report(-EFBIG, "");
+                return;
+            }
+            report(cp0_posix_filesystem::write_file_atomic(value, data), "");
         } else if (command == "EnsureDirForUser") {
             if (arguments.size() != 2 || !valid_path(value) || !operations.ensure_directory) {
                 report(-1, "invalid directory path");

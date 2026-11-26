@@ -97,7 +97,7 @@ int cp0_file_read_first_line(const char *path, char *out, int out_size);
 
 `cp0_signal_config_api` のファイルは `$HOME/.config/cardputerzero/config.json` です。コマンドは `Init`、`Save`、`GetInt key fallback`、`SetInt key value`、`GetStr key fallback`、`SetStr key value`、`SetManyAndSave key value [key value...]`。set はメモリだけを変更するため、永続化には `Save` を呼びます。
 
-`cp0_signal_filesystem_api` は `Path logical_name`、`DirList path`、`DirListDetail path`、`Exists path`、`ReadFile path [max_bytes]`、`EnsureDirForUser path`、`Touch path`、`Remove path`、`WatchStart path`、`WatchPoll handle`、`WatchStop handle` を提供します。`Exists` は `1/0`、空または NUL を含むパスは無効、未知コマンドは code -2 です。
+`cp0_signal_filesystem_api` は `Path logical_name`、`DirList path`、`DirListDetail path`、`Exists path`、`ReadFile path [max_bytes]`、`WriteFile path data`、`EnsureDirForUser path`、`Touch path`、`Remove path`、`WatchStart path`、`WatchPoll handle`、`WatchStop handle` を提供します。`Exists` は `1/0`、空または NUL を含むパスは無効、未知コマンドは code -2 です。`WriteFile` は `path.tmp` に書いてから `path` へ rename するため、途中で失敗しても元のファイルは壊れません。親ディレクトリは作成しません。data は最大 1 MiB（超えると `-EFBIG`）、失敗時は `-errno` を返します。
 
 ### Wi-Fi: `cp0_signal_wifi_api(args, cb)`
 
